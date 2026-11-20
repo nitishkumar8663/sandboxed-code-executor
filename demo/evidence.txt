@@ -1,0 +1,75 @@
+Sandboxed Code Executor: demo evidence
+generated: 2026-11-20 17:29:39 GMT
+
+### 1. Benign code succeeds
+status:       ok
+returncode:   0
+timed_out:    False
+cpu_seconds:  0.027
+max_rss_kb:   10956
+wall_seconds: 0.027
+artifacts:    ['primes.json']
+  primes.json: b'[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]'
+stdout: 'found 15 primes'
+EXPECTED: status ok, returncode 0, primes.json returned as an artifact
+
+### 2. Exfiltration attempt: read /etc/passwd
+status:       error
+returncode:   1
+timed_out:    False
+cpu_seconds:  0.015
+max_rss_kb:   10956
+wall_seconds: 0.015
+stderr (tail): '7/main.py", line 1, in <module>\n    print(open(\'/etc/passwd\').read())\n          ^^^^^^^^^^^^^^^^^^^\n  File "sandboxed-code-executor/sandbox/_launcher.py", line 151, in hook\nPermissionError: sandbox: read outside the run directory is blocked: /etc/passwd'
+EXPECTED: status error, returncode 1, stderr names the blocked read, no file content in stdout
+
+### 3a. Network attempt: import socket (validation layer)
+status:       validation_error
+returncode:   None
+timed_out:    False
+cpu_seconds:  0.0
+max_rss_kb:   0
+wall_seconds: 0.0
+validation errors:
+  - line 1: import of 'socket' is not allowed (top-level module 'socket' is not on the import allowlist)
+EXPECTED: status validation_error, code never executes
+
+### 3b. Network attempt: socket with validation bypassed (runtime hook layer)
+status:       error
+returncode:   1
+timed_out:    False
+cpu_seconds:  0.015
+max_rss_kb:   10956
+wall_seconds: 0.015
+stderr (tail): 'box/_launcher.py", line 213, in main\n  File "/tmp/sbox-7d3ec0573a8f-iaji14xg/main.py", line 1, in <module>\n    import socket\n  File "sandboxed-code-executor/sandbox/_launcher.py", line 159, in hook\nPermissionError: sandbox: import of \'socket\' is blocked'
+EXPECTED: status error, audit hook blocks the import, 'connected' never prints
+
+### 4. Unbounded memory allocation (512 MB vs 128 MB cap)
+status:       error
+returncode:   1
+timed_out:    False
+cpu_seconds:  0.014
+max_rss_kb:   10956
+wall_seconds: 0.015
+stderr (tail): '", line 224, in <module>\n  File "sandboxed-code-executor/sandbox/_launcher.py", line 213, in main\n  File "/tmp/sbox-ff7a0baa053d-s88g3cc0/main.py", line 1, in <module>\n    x = bytearray(512 * 1024 * 1024)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nMemoryError'
+EXPECTED: status error, MemoryError in stderr, process killed by RLIMIT_AS
+
+### 5. Banned import: subprocess
+status:       validation_error
+returncode:   None
+timed_out:    False
+cpu_seconds:  0.0
+max_rss_kb:   0
+wall_seconds: 0.0
+validation errors:
+  - line 1: import of 'subprocess' is not allowed (top-level module 'subprocess' is not on the import allowlist)
+EXPECTED: status validation_error, code never executes
+
+### 6. Fork-bomb route + infinite loop (wall-clock timeout)
+status:       timeout
+returncode:   -9
+timed_out:    True
+cpu_seconds:  3.004
+max_rss_kb:   10956
+wall_seconds: 3.005
+EXPECTED: status timeout, timed_out True, process group killed after ~3s. Note: a real fork bomb cannot even be written: os/multiprocessing are rejected at validation (scenario 5 pattern), and the process cap bounds forks.
