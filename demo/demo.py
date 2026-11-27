@@ -1,13 +1,8 @@
 """Demo: prove the sandbox with observed evidence.
 
-Runs six scenarios through the library and prints/writes a transcript:
-  1. benign code succeeds and returns a file artifact
-  2. exfiltration attempt (read /etc/passwd) is blocked, nothing leaks
-  3. network attempt (import socket) is rejected; runtime hook blocks it
-     even if validation is bypassed
-  4. unbounded memory allocation is killed by the memory cap
-  5. banned import (subprocess) is rejected before execution
-  6. infinite loop is killed by the wall-clock timeout
+Runs scenarios through the library and prints/writes a transcript,
+covering benign code, exfiltration attempt, network attempt, unbounded
+memory, banned import, infinite loop.
 
 Run:  python3 demo/demo.py            (from the project root)
 The transcript is written to demo/evidence.txt.

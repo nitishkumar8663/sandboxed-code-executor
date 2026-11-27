@@ -1,6 +1,6 @@
 # Sandboxed Code Executor
 
-One of Suraj Sharma's 12 agentic-AI projects: run agent-written code
+Run agent-written code
 inside a sandbox so agents can code without burning the server. Spec:
 E2B/gVisor microVMs, zero network egress, resource limits, AST
 validation, isolated file systems.
